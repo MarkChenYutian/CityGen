@@ -109,7 +109,9 @@ def build_connectivity_graph(xyz_metadatas: list, distance_thresh=0.75):
     for idx in range(len(xyz_metadatas)):
         dist = np.linalg.norm(locs - locs[idx:idx+1], axis=1)
         nn_dist = min(distance_thresh, dist[dist > 0].min())
-        neighbors,  = np.where(dist < nn_dist * 1.25)
+        is_neighbor = dist < nn_dist * 1.25
+        is_neighbor[idx] = False
+        neighbors,  = np.where(is_neighbor)
         xyz_metadatas[idx]["neighbors"] = neighbors.tolist()
     
 def visualize_query_location(lng_rng, lat_rng, step_cnt):
@@ -235,5 +237,7 @@ if __name__ == "__main__":
     build_connectivity_graph(metas, distance_thresh=0.15)
     
     visualize_connectivity_graph(metas)
+    with open("pittsburgh_pano_graph.pkl", "wb") as fb:
+        pickle.dump(metas, fb)
     # breakpoint()
     
