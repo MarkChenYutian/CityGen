@@ -1,0 +1,7 @@
+Street/
+dust3r/
+Test_asset/
+
+*.pyc
+*.pkl
+secret.txt
