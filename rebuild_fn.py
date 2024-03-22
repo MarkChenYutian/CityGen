@@ -1,4 +1,5 @@
 import os
+import torch
 import numpy as np
 import PIL.Image
 from PIL.ImageOps import exif_transpose
@@ -70,17 +71,18 @@ def load_images(folder_or_list, size, square_ok=False):
     return imgs
 
 
-def load_panorama_pairs(xyz_metadatas, headings=(0, 1, 2, 3), symmetry=False):
+def load_panorama_pairs(xyz_metadatas, pano_path, headings=(0, 1, 2, 3), symmetry=False):
     pid2idx = {meta["pano_id"] : idx for idx, meta in enumerate(xyz_metadatas)}
     pano_images = dict()
     image_id = 0
     
     for idx, meta in enumerate(xyz_metadatas):
         panoid = meta["pano_id"]
-        images = load_images([f'./Street/{panoid}/gsv_{hid}.jpg' for hid in headings], size=512)
+        images = load_images([f'{pano_path}/{panoid}/gsv_{hid}.jpg' for hid in headings], size=512)
         for idx in range(len(images)):
             images[idx]["idx"] = image_id
             images[idx]["instance"] = str(image_id)
+            images[idx]["xyz"] = torch.tensor(meta["location"]["xyz"])
             image_id += 1
         
         pano_images[panoid] = images
@@ -103,9 +105,11 @@ def load_panorama_pairs(xyz_metadatas, headings=(0, 1, 2, 3), symmetry=False):
             images = pano_images[pid]
             
             # Add intra-panorama pair
-            for i in range(len(images)):
-                for j in range(i+1, len(images)):
-                    connected_components[-1].append((images[i], images[j]))
+            for curr_idx in range(len(images)):
+                left_idx = curr_idx - 1
+                # for j in range(i+1, len(images)):
+                # Image i, Image j, ref_displacement
+                connected_components[-1].append((images[curr_idx], images[left_idx], torch.tensor([0., 0., 0.])))
             
             # Add inter-panorama pair
             for nid in xyz_metadatas[pid2idx[pid]]["neighbors"]:
@@ -113,18 +117,18 @@ def load_panorama_pairs(xyz_metadatas, headings=(0, 1, 2, 3), symmetry=False):
                 
                 fringe.add(nid)
                 
-                # To avoid (i, j), (j, i) duplication.
+                # To avoid (i, j), (j, i) duplication. Will add in "if symmetry" step if required.
                 if pid2idx[nid] < pid2idx[pid]:
                     continue
                 
                 neighbor_images = pano_images[nid]
                 for i in range(len(images)):
                     for j in range(len(neighbor_images)):
-                        connected_components[-1].append((images[i], neighbor_images[j]))
+                        connected_components[-1].append((images[i], neighbor_images[j], neighbor_images[j]["xyz"] - images[i]["xyz"]))
         
         if symmetry:
             reverse_pairs = []
-            for i, j in connected_components[-1]: reverse_pairs.append((j, i))
+            for i, j, pos in connected_components[-1]: reverse_pairs.append((j, i, -1*pos))
             connected_components[-1].extend(reverse_pairs)
         
         connected_components.append([])

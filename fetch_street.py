@@ -4,12 +4,7 @@ import google_streetview.api
 
 from tqdm import tqdm
 from pathlib import Path
-
-import util.visualize as vis
 from util.latlng2xyz import PlateCarree_to_xyz
-from dust3r_fn import load_panorama_pairs
-from interface_dust3r import local_reconstruct
-
 
 # https://www.openstreetmap.org/
 # ^^ I found this to be very useful to find where you want to visualize!
@@ -126,21 +121,11 @@ if __name__ == "__main__":
     # vis.visualize_pano_location(LONGTITUDE_RNG, LATITUDE_RNG, metas)
     
     # This will read the cache so won't call expensive GoogleAPI every time.
-    download_panos([meta["pano_id"] for meta in metas], "./Street")
+    download_panos([meta["pano_id"] for meta in metas], "./Data/Street_6view", 
+                   headings=(0, 60, 120, 180, 240, 300))
     batch_convert_xyz(metas, cvt_fn=PlateCarree_to_xyz)
     build_connectivity_graph(metas, distance_thresh=0.15)
     
-    pair_groups = load_panorama_pairs([metas[i] for i in [1, 2, 51]], symmetry=False)
-    # pair_groups = load_panorama_pairs([metas[i] for i in [0, 50]], symmetry=False)
-    for group in pair_groups:
-        if len(group) == 0: continue
-        vis.visualize_ptcloud(*local_reconstruct(group))
-    
-    # vis.visualize_cam_position(metas, "./Street", min_distance=0.2)
-    # vis.visualize_connectivity_graph(metas)
-    
-    # print(load_panorama_pairs)
-    
-    # with open("pittsburgh_pano_graph.pkl", "wb") as fb:
-    #     pickle.dump(metas, fb)
+    with open("pittsburgh_pano_graph.pkl", "wb") as fb:
+        pickle.dump(metas, fb)
 

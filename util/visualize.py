@@ -13,11 +13,17 @@ from PIL import Image
 from pathlib import Path
 from itertools import product
 
-def visualize_ptcloud(pts_arr: list[torch.Tensor], img_arr: list[torch.Tensor]):
+def visualize_ptcloud(pts_arr: list[torch.Tensor], img_arr: list[torch.Tensor], poses: torch.Tensor):
     rr.log("world/points", rr.Points3D(
         torch.cat([pts.reshape(-1, 3) for pts in pts_arr], dim=0),
         colors=torch.cat([img.reshape(-1, 3) for img in img_arr], dim=0)
     ))
+    
+    for i in range(poses.size(0)):
+        rr.log(f"world/cam/{i}",
+                rr.Pinhole(resolution=(512, 384), focal_length=(320, 320)),
+                rr.Transform3D(mat3x3=poses[i, :3, :3], translation=poses[i, :3, 3])
+        )
 
 
 def visualize_query_location(lng_rng, lat_rng, step_cnt):

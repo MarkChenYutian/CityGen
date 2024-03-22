@@ -1,6 +1,5 @@
 import torch
 from util.context import AddPath
-from itertools import product
 
 with AddPath("./dust3r/"):
     from dust3r.inference import inference, load_model
@@ -19,20 +18,13 @@ N_ITER = 300
 model = load_model(MODEL_PATH, DEVICE)
 
 
-def local_reconstruct(pairs):
-    # headings = [0, 1, 2, 3]
-    # views = product(pano_ids, headings)
+def local_reconstruct(pairs_with_gps):
+    pairs = [(i, j) for i, j, _ in pairs_with_gps]
+    ref_pairwise_pos = [p for _, _, p in pairs_with_gps]
     
-    # images = load_images([f'./Street/{pid}/gsv_{hid}.jpg' for pid, hid in views], size=512)
-    
-    # pairs = make_pairs(images, scene_graph='complete', prefilter=None, symmetrize=True)
     output = inference(pairs, model, DEVICE, batch_size=BATCH_SIZE)
 
-    scene = global_aligner(output, device=DEVICE, mode=GlobalAlignerMode.PointCloudOptimizer)
-    
-    # Remove the "Google" copyright watermark by setting confidence sufficiently low
-    # for idx in range(len(scene.im_conf)):
-    #     scene.im_conf[idx].data[360:] = 1.
+    scene = global_aligner(output, device=DEVICE, mode=GlobalAlignerMode.GPSInformedOptimizer, ref_pairwise_pos=ref_pairwise_pos)
     
     loss = scene.compute_global_alignment(init="mst", niter=N_ITER, schedule=SCHEDULE, lr=LR)
 
@@ -40,4 +32,7 @@ def local_reconstruct(pairs):
     masks  = scene.get_masks()
     imgs = scene.imgs
     
-    return [p[m].detach().cpu() for p, m in zip(pts3ds, masks)], [torch.tensor(img[m.detach().cpu()]) for img, m in zip(imgs, masks)]
+    points = [p[m].detach().cpu() for p, m in zip(pts3ds, masks)]
+    colors = [torch.tensor(img[m.detach().cpu()]) for img, m in zip(imgs, masks)]
+    poses  = scene.get_im_poses().detach().cpu()
+    return points, colors, poses

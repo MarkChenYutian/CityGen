@@ -1,0 +1,3 @@
+[submodule "lang-segment-anything"]
+	path = lang-segment-anything
+	url = https://github.com/luca-medeiros/lang-segment-anything
