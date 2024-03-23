@@ -3,17 +3,15 @@ from util.context import AddPath
 
 with AddPath("./dust3r/"):
     from dust3r.inference import inference, load_model
-    from dust3r.utils.image import load_images
-    from dust3r.image_pairs import make_pairs
     from dust3r.cloud_opt import global_aligner, GlobalAlignerMode
-    from dust3r.utils.geometry import find_reciprocal_matches, xy_grid
 
-MODEL_PATH = "D:/Data/TDW/DUSt3R_ViTLarge_BaseDecoder_512_dpt.pth"
+MODEL_PATH = "/data2/datasets/yutianch/StreetView/DUSt3R_ViTLarge_BaseDecoder_512_dpt.pth"
 DEVICE = 'cuda'
 BATCH_SIZE = 1
-SCHEDULE = 'cosine'
+SCHEDULE = 'linear'
 LR = 0.01
-N_ITER = 300
+N_ITER = 1000
+MIN_CONF_THR = 6
 
 model = load_model(MODEL_PATH, DEVICE)
 
@@ -24,7 +22,13 @@ def local_reconstruct(pairs_with_gps):
     
     output = inference(pairs, model, DEVICE, batch_size=BATCH_SIZE)
 
-    scene = global_aligner(output, device=DEVICE, mode=GlobalAlignerMode.GPSInformedOptimizer, ref_pairwise_pos=ref_pairwise_pos)
+    scene = global_aligner(
+        output,
+        device=DEVICE,
+        mode=GlobalAlignerMode.GPSInformedOptimizer,
+        ref_pairwise_pos=ref_pairwise_pos,
+        min_conf_thr=MIN_CONF_THR
+    )
     
     loss = scene.compute_global_alignment(init="mst", niter=N_ITER, schedule=SCHEDULE, lr=LR)
 

@@ -13,15 +13,18 @@ LATITUDE_RNG   = [ 40.44,  40.445]
 if __name__ == "__main__":
     import rerun as rr
     rr.init("Application", spawn=True)
+    rr.save("/data/yutianch/StreetView/pointcloud.rrd")
     
     with open("pittsburgh_pano_graph.pkl", "rb") as fb:
         metas = pickle.load(fb)
     
     # vis.visualize_pano_location(LONGTITUDE_RNG, LATITUDE_RNG, metas)
     
-    # pair_groups = load_panorama_pairs([metas[i] for i in [1, 2, 51, 76, 77]], "./Data/Street_6view", headings=(0, 1, 2, 3, 4, 5), symmetry=True)
+    pair_groups = load_panorama_pairs([metas[i] for i in [76, 77]], "./Data/Street_6view", headings=(0, 1, 2, 3, 4, 5), symmetry=True)
+    # pair_groups = load_panorama_pairs([metas[i] for i in [1, 2, 51, 76, 77]], "./Data/Street_4view", headings=(0, 1, 2, 3), symmetry=True)
     # pair_groups = load_panorama_pairs([metas[i] for i in [0, 50]], "./Data/Street_6view", headings=(0, 1, 2, 3, 4, 5), symmetry=True)
-    pair_groups = load_panorama_pairs([metas[i] for i in [0]], "./Data/Street_6view", headings=(0, 1, 2, 3, 4, 5), symmetry=True)
+    # pair_groups = load_panorama_pairs([metas[i] for i in [1, 2]], "./Data/Street_6view", headings=(0, 1, 2, 3, 4, 5), symmetry=True)
+    # pair_groups = load_panorama_pairs([metas[i] for i in [51]], "./Data/Street_6view", headings=(0, 1, 2, 3, 4, 5), symmetry=True)
     for group in pair_groups:
         if len(group) <= 1: continue
         vis.visualize_ptcloud(*local_reconstruct(group))

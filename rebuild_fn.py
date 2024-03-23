@@ -5,7 +5,11 @@ import PIL.Image
 from PIL.ImageOps import exif_transpose
 import torchvision.transforms as tvf
 
+from clean_frame import LangSAMExtractor
+
 ImgNorm = tvf.Compose([tvf.ToTensor(), tvf.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+DynamicMask_Vehicle = LangSAMExtractor("vehicle", "vit_l", "/data2/datasets/yutianch/SpaceQA/models/sam_vit_l_0b3195.pth", 40, "cuda")
+DynamicMask_Person  = LangSAMExtractor("person", "vit_l", "/data2/datasets/yutianch/SpaceQA/models/sam_vit_l_0b3195.pth", 40, "cuda")
 
 def _resize_pil_image(img, long_edge_size):
     S = max(img.size)
@@ -62,14 +66,23 @@ def load_images(folder_or_list, size, square_ok=False):
             img = img.crop((cx-halfw, cy-halfh, cx+halfw, cy+halfh))
 
         W2, H2 = img.size
+        
+        mask1 = DynamicMask_Vehicle.segment(img)
+        mask2 = DynamicMask_Person.segment(img)
+        mask = torch.logical_or(mask1, mask2)[0]
+        
         print(f' - adding {path} with resolution {W1}x{H1} --> {W2}x{H2}')
-        imgs.append(dict(img=ImgNorm(img)[None], true_shape=np.int32(
-            [img.size[::-1]]), idx=len(imgs), instance=str(len(imgs))))
+        imgs.append(dict(
+            img=ImgNorm(img)[None],
+            mask=mask,
+            true_shape=np.int32([img.size[::-1]]),
+            idx=len(imgs),
+            instance=str(len(imgs))
+        ))
 
     assert imgs, 'no images foud at '+root
     print(f' (Found {len(imgs)} images)')
     return imgs
-
 
 def load_panorama_pairs(xyz_metadatas, pano_path, headings=(0, 1, 2, 3), symmetry=False):
     pid2idx = {meta["pano_id"] : idx for idx, meta in enumerate(xyz_metadatas)}

@@ -206,16 +206,14 @@ class GPS_PointCloudOptimizer(BasePCOptimizer):
         aligned_pred_i = geotrf(pw_poses, pw_adapt * self._stacked_pred_i)
         aligned_pred_j = geotrf(pw_poses, pw_adapt * self._stacked_pred_j)
         
-        # Additional Constraint:
-        # same_pano = self.ref_pairwise_pos.norm(dim=1) == 0
-        # gps_alignment = (pw_poses[..., :3, 3] - self.ref_pairwise_pos).square().sum()
-        # breakpoint()
-        # gps_alignment = (pw_poses[:, :3, 3] - self.ref_pairwise_pos).square().sum()
-        # gps_alignment = 0
-        # gps_alignment = self.im_poses[4:7] - 
+        # Additional Constraint - a pano should stay in same position:
+        im_poses = self.get_im_poses().reshape((-1, 6, 4, 4))
+        im_position = im_poses[..., :3, 3]
+        avg_position = im_position.mean(dim=1, keepdim=True)
+        alignment_loss = (im_position - avg_position).square().sum()
 
         # compute the less
         li = self.dist(proj_pts3d[self._ei], aligned_pred_i, weight=self._weight_i).sum() / self.total_area_i
         lj = self.dist(proj_pts3d[self._ej], aligned_pred_j, weight=self._weight_j).sum() / self.total_area_j
 
-        return li + lj
+        return li + lj + alignment_loss

@@ -71,14 +71,17 @@ class BasePCOptimizer (nn.Module):
         # work in log-scale with conf
         pred1_conf = pred1['conf']
         pred2_conf = pred2['conf']
+        
+        # Apply masking: NEW @ 2024 Mar 22
+        pred1_conf[view1["mask"]] = 1.
+        pred2_conf[view2["mask"]] = 1.
+        
         self.min_conf_thr = min_conf_thr
         self.conf_trf = get_conf_trf(conf)
 
         self.conf_i = NoGradParamDict({ij: pred1_conf[n] for n, ij in enumerate(self.str_edges)})
         self.conf_j = NoGradParamDict({ij: pred2_conf[n] for n, ij in enumerate(self.str_edges)})
         self.im_conf = self._compute_img_conf(pred1_conf, pred2_conf)
-        
-        breakpoint()
 
         # pairwise pose parameters
         self.base_scale = base_scale
