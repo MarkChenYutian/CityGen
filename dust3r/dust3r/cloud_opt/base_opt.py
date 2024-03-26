@@ -73,8 +73,9 @@ class BasePCOptimizer (nn.Module):
         pred2_conf = pred2['conf']
         
         # Apply masking: NEW @ 2024 Mar 22
-        pred1_conf[view1["mask"]] = 1.
-        pred2_conf[view2["mask"]] = 1.
+        if "mask" in view1:
+            pred1_conf[view1["mask"]] = 1.
+            pred2_conf[view2["mask"]] = 1.
         
         self.min_conf_thr = min_conf_thr
         self.conf_trf = get_conf_trf(conf)

@@ -8,12 +8,32 @@ with AddPath("./dust3r/"):
 MODEL_PATH = "/data2/datasets/yutianch/StreetView/DUSt3R_ViTLarge_BaseDecoder_512_dpt.pth"
 DEVICE = 'cuda'
 BATCH_SIZE = 1
-SCHEDULE = 'linear'
+SCHEDULE = 'cosine'
 LR = 0.01
-N_ITER = 1000
+N_ITER = 300
 MIN_CONF_THR = 6
 
 model = load_model(MODEL_PATH, DEVICE)
+
+
+def naive_reconstruct(pairs):
+    output = inference(pairs, model, DEVICE, batch_size=BATCH_SIZE)
+    scene = global_aligner(
+        output,
+        device=DEVICE,
+        mode=GlobalAlignerMode.PointCloudOptimizer,
+        min_conf_thr=MIN_CONF_THR
+    )
+    loss = scene.compute_global_alignment(init="mst", niter=N_ITER, schedule=SCHEDULE, lr=LR)
+    
+    pts3ds = scene.get_pts3d()
+    masks  = scene.get_masks()
+    imgs = scene.imgs
+    
+    points = [p[m].detach().cpu() for p, m in zip(pts3ds, masks)]
+    colors = [torch.tensor(img[m.detach().cpu()]) for img, m in zip(imgs, masks)]
+    poses  = scene.get_im_poses().detach().cpu()
+    return points, colors, poses
 
 
 def local_reconstruct(pairs_with_gps):
@@ -31,12 +51,15 @@ def local_reconstruct(pairs_with_gps):
     )
     
     loss = scene.compute_global_alignment(init="mst", niter=N_ITER, schedule=SCHEDULE, lr=LR)
+    scene.clean_pointcloud()
 
     pts3ds = scene.get_pts3d()
     masks  = scene.get_masks()
     imgs = scene.imgs
+    confs = scene.get_conf()
     
-    points = [p[m].detach().cpu() for p, m in zip(pts3ds, masks)]
-    colors = [torch.tensor(img[m.detach().cpu()]) for img, m in zip(imgs, masks)]
-    poses  = scene.get_im_poses().detach().cpu()
-    return points, colors, poses
+    points = [p[m].detach() for p, m in zip(pts3ds, masks)]
+    confs  = [c[m].detach() for c, m in zip(confs, masks)]
+    colors = [torch.tensor(img, device=DEVICE)[m.detach()] for img, m in zip(imgs, masks)]
+    poses  = scene.get_im_poses().detach()
+    return points, colors, confs, poses

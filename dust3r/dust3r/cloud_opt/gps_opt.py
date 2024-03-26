@@ -14,6 +14,7 @@ from dust3r.utils.device import to_cpu, to_numpy
 from .optimizer import ParameterStack, _ravel_hw, _fast_depthmap_to_pts3d
 
 
+alignment_kernel = nn.HuberLoss(reduction="sum", delta=0.01)
 
 class GPS_PointCloudOptimizer(BasePCOptimizer):
     """ Optimize a global scene, given a list of pairwise observations.
@@ -209,8 +210,8 @@ class GPS_PointCloudOptimizer(BasePCOptimizer):
         # Additional Constraint - a pano should stay in same position:
         im_poses = self.get_im_poses().reshape((-1, 6, 4, 4))
         im_position = im_poses[..., :3, 3]
-        avg_position = im_position.mean(dim=1, keepdim=True)
-        alignment_loss = (im_position - avg_position).square().sum()
+        avg_position = im_position.mean(dim=1, keepdim=True).repeat(1, 6, 1)
+        alignment_loss = alignment_kernel(im_position, avg_position)
 
         # compute the less
         li = self.dist(proj_pts3d[self._ei], aligned_pred_i, weight=self._weight_i).sum() / self.total_area_i
