@@ -1,7 +1,9 @@
 Test_asset/
-
+.idea/
+3dtiles-dl.zip
+3dtiles-dl/
 *.pyc
 *.pkl
 secret.txt
-
+Street/
 Data/

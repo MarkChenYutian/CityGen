@@ -1,5 +1,7 @@
 from util.context import AddPath
 from itertools import product
+from scene2glb import _convert_scene_output_to_glb
+import argparse
 with AddPath("./dust3r/"):
     from dust3r.inference import inference, load_model
     from dust3r.utils.image import load_images
@@ -7,15 +9,45 @@ with AddPath("./dust3r/"):
     from dust3r.cloud_opt import global_aligner, GlobalAlignerMode
     from dust3r.utils.geometry import find_reciprocal_matches, xy_grid
 
-if __name__ == '__main__':
-    import matplotlib.pyplot as plt
+# _convert_scene_output_to_glb(outdir, imgs, pts3d, mask, focals, cams2world, cam_size=0.05,
+#                                  cam_color=None, as_pointcloud=False, transparent_cams=False):
+# assert len(pts3d) == len(mask) <= len(imgs) <= len(cams2world) == len(focals)
     
-    model_path = "D:/Data/TDW/DUSt3R_ViTLarge_BaseDecoder_512_dpt.pth"
-    device = 'cuda'
-    batch_size = 1
-    schedule = 'cosine'
-    lr = 0.01
-    niter = 300
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser("Google Stree View Dust3R", add_help=True)
+    parser.add_argument(
+        "--model_path", type=str, required=False,
+        default="D:/Data/TDW/DUSt3R_ViTLarge_BaseDecoder_512_dpt.pth", help="path to checkpoint file"
+    )
+    parser.add_argument(
+        "--run_on_headless", action="store_true", help="running on headless cluster"
+    )
+    parser.add_argument(
+        "--generate_glb", action="store_true", help="generate glb output"
+    )
+    parser.add_argument(
+        "--batch_size", type=int, default=1, help="batch size"
+    )
+    parser.add_argument(
+        "--niter", type=int, default=300, help="number iteration"
+    )
+    parser.add_argument(
+        "--device", type=str, default='cuda', help="device"
+    )
+    parser.add_argument(
+        "--schedule", type=str, default='cosine', help="schedule"
+    )
+    parser.add_argument(
+        "--lr", type=float, default=0.01, help="learning rate"
+    )
+    args = parser.parse_args()
+    import matplotlib.pyplot as plt
+    model_path = args.model_path
+    device = args.device
+    batch_size = args.batch_size
+    schedule = args.schedule
+    lr = args.lr
+    niter = args.niter
 
     model = load_model(model_path, device)
     # load_images can take a list of images or a directory
@@ -64,7 +96,8 @@ if __name__ == '__main__':
     confidence_masks = scene.get_masks()
 
     # visualize reconstruction
-    scene.show()
+    if not args.run_on_headless:
+        scene.show()
 
     # find 2D-2D matches between the two images
     
@@ -90,9 +123,16 @@ if __name__ == '__main__':
     img1 = np.pad(imgs[1], ((0, max(H0 - H1, 0)), (0, 0), (0, 0)), 'constant', constant_values=0)
     img = np.concatenate((img0, img1), axis=1)
     pl.figure()
-    pl.imshow(img)
+    if not args.run_on_headless:
+        pl.imshow(img)
     cmap = pl.get_cmap('jet')
     for i in range(n_viz):
         (x0, y0), (x1, y1) = viz_matches_im0[i].T, viz_matches_im1[i].T
         pl.plot([x0, x1 + W0], [y0, y1], '-+', color=cmap(i / (n_viz - 1)), scalex=False, scaley=False)
-    pl.show(block=True)
+    if not args.run_on_headless:
+        pl.show(block=True)
+    if args.generate_glb:
+        _convert_scene_output_to_glb(outdir="output_glb", imgs=imgs, pts3d=pts3d, mask=confidence_masks, focals=focals,
+                                     cams2world=poses, cam_size=0.05, cam_color=None, as_pointcloud=False,
+                                     transparent_cams=False)
+
